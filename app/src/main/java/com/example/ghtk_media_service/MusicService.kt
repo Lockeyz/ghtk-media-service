@@ -32,11 +32,19 @@ class MusicService : Service() {
         val action = intent?.action
 
         when (action) {
-            "PLAY_PAUSE" -> {
+             "PLAY" -> {
+//                if (mediaPlayer.isPlaying) {
+//                    mediaPlayer.pause()
+//                } else {
+//                    mediaPlayer.start()
+//                }
+                if (!mediaPlayer.isPlaying) {
+                    mediaPlayer.start()
+                }
+            }
+            "PAUSE" -> {
                 if (mediaPlayer.isPlaying) {
                     mediaPlayer.pause()
-                } else {
-                    mediaPlayer.start()
                 }
             }
             "INCREASE_VOLUME" -> {
