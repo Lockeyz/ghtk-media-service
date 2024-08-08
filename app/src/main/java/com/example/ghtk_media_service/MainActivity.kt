@@ -51,7 +51,7 @@ class MainActivity : AppCompatActivity() {
                 isPlaying = intent?.getBooleanExtra("state", false) ?: false
                 name = intent?.getStringExtra("name") ?: ""
                 volume = intent?.getIntExtra("volume", 0) ?: 0
-                volume = intent?.getIntExtra("max_volume", 1) ?: 1
+                maxVolume = intent?.getIntExtra("max_volume", 1) ?: 1
                 // Cập nhật ProgressBar
                 progress = (currentPosition * 100) / duration
                 binding.linearProgressBar.progress = progress
@@ -109,11 +109,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setIncreaseVolumeButton() {
-            sendActionToService("INCREASE_VOLUME")
+        senActionToForegroundService(INCREASE_VOLUME)
     }
 
     private fun setDecreaseVolumeButton() {
-            sendActionToService("DECREASE_VOLUME")
+        senActionToForegroundService(DECREASE_VOLUME)
     }
 
     private fun sendActionToService(action: String) {

@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.media.AudioManager
@@ -59,6 +60,9 @@ class ForegroundService : Service() {
         )
         mediaPlayer.prepare()
 
+        // Initialize AudioManager
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
         sendProgressBroadcast()
 
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -102,10 +106,12 @@ class ForegroundService : Service() {
             }
             INCREASE_VOLUME -> {
                 audioManager.adjustVolume(AudioManager.ADJUST_RAISE, AudioManager.FLAG_PLAY_SOUND)
+                sendProgressBroadcast()
 
             }
             DECREASE_VOLUME -> {
                 audioManager.adjustVolume(AudioManager.ADJUST_LOWER, AudioManager.FLAG_PLAY_SOUND)
+                sendProgressBroadcast()
             }
             GET_SONG_NAME -> {
 
@@ -148,8 +154,8 @@ class ForegroundService : Service() {
         intent.putExtra("duration", mediaPlayer.duration)
         intent.putExtra("state", mediaPlayer.isPlaying)
         intent.putExtra("name", R.raw.as_it_was.toString())
-//        intent.putExtra("volume", audioManager.getStreamVolume(AudioManager.STREAM_MUSIC))
-//        intent.putExtra("max_volume", audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC))
+        intent.putExtra("volume", audioManager.getStreamVolume(AudioManager.STREAM_MUSIC))
+        intent.putExtra("max_volume", audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC))
         sendBroadcast(intent)
     }
 }
