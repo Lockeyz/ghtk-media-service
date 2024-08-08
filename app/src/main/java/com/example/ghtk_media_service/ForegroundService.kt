@@ -49,7 +49,7 @@ class ForegroundService : Service() {
         mediaPlayer = MediaPlayer()
         mediaPlayer.isLooping = false
         mediaPlayer.setOnCompletionListener {
-//            stopSelf()
+            stopSelf()
 //            mediaPlayer.stop()
 //            mediaPlayer.prepare()
 //            sendStateBroadcast()

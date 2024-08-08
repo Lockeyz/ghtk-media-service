@@ -23,7 +23,6 @@ class MainActivity : AppCompatActivity() {
         const val GET_SONG_NAME = 5
         const val GET_STATE = 6
     }
-    private var action = PLAY
 
     private lateinit var songNameReceiver: BroadcastReceiver
     private lateinit var songProgressReceiver: BroadcastReceiver
@@ -100,11 +99,9 @@ class MainActivity : AppCompatActivity() {
         if (!isPlaying) {
             senActionToForegroundService(PLAY)
             binding.playPauseButton.setImageResource(R.drawable.pause)
-//            isPlaying = true
         } else {
             senActionToForegroundService(PAUSE)
             binding.playPauseButton.setImageResource(R.drawable.play)
-//            isPlaying = false
         }
     }
 
@@ -114,12 +111,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun setDecreaseVolumeButton() {
         senActionToForegroundService(DECREASE_VOLUME)
-    }
-
-    private fun sendActionToService(action: String) {
-        val serviceIntent = Intent(this, MusicService::class.java)
-        serviceIntent.action = action
-        startService(serviceIntent)
     }
 
     private fun senActionToForegroundService(action: Int) {
