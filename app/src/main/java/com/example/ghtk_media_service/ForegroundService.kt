@@ -13,6 +13,17 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.example.ghtk_media_service.MainActivity.Companion.DECREASE_VOLUME
+import com.example.ghtk_media_service.MainActivity.Companion.GET_SONG_NAME
+import com.example.ghtk_media_service.MainActivity.Companion.GET_STATE
+import com.example.ghtk_media_service.MainActivity.Companion.INCREASE_VOLUME
+import com.example.ghtk_media_service.MainActivity.Companion.PAUSE
+import com.example.ghtk_media_service.MainActivity.Companion.PLAY
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class ForegroundService : Service() {
 
@@ -24,6 +35,8 @@ class ForegroundService : Service() {
         private val TAG = ForegroundService::class.java.simpleName
     }
 
+    private var progressUpdateJob: Job? = null
+
     override fun onBind(intent: Intent): IBinder? {
         return null
     }
@@ -33,15 +46,20 @@ class ForegroundService : Service() {
         instance = this
         Log.e(TAG, "onCreate ${hashCode()}")
         mediaPlayer = MediaPlayer()
+        mediaPlayer.isLooping = false
         mediaPlayer.setOnCompletionListener {
-            stopSelf()
+//            stopSelf()
+//            mediaPlayer.stop()
+//            mediaPlayer.prepare()
+//            sendStateBroadcast()
         }
         mediaPlayer.setDataSource(
             applicationContext,
-            Uri.parse("android.resource://" + packageName + "/" + R.raw.saika)
+            Uri.parse("android.resource://" + packageName + "/" + R.raw.as_it_was)
         )
         mediaPlayer.prepare()
-        mediaPlayer.start()
+
+        sendProgressBroadcast()
 
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         val channelName = "Play Music Background Service"
@@ -59,7 +77,7 @@ class ForegroundService : Service() {
         val notificationBuilder = NotificationCompat.Builder(this, packageName)
         val notification = notificationBuilder.setOngoing(true)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("Tèn tén ten")
+            .setContentTitle("Đang phát nhạc")
             .setContentText("Cùng nghe nhạc nào mọi người!")
             .setPriority(NotificationManager.IMPORTANCE_MIN)
             .setCategory(Notification.CATEGORY_SERVICE)
@@ -69,24 +87,31 @@ class ForegroundService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val data = intent?.getIntExtra("data", -1)
-        val action = intent?.action
+        val action = intent?.getIntExtra("action", -1)
         Log.e(TAG, "onStartCommand Data: $data, Flag: $flags, StartId: $startId")
         when (action) {
-            "PLAY" -> {
-                if (!mediaPlayer.isPlaying) {
-                    mediaPlayer.start()
-                }
+            PLAY -> {
+                mediaPlayer.start()
+                startProgressUpdates()
             }
-            "PAUSE" -> {
-                if (mediaPlayer.isPlaying) {
-                    mediaPlayer.pause()
-                }
+            PAUSE -> {
+                mediaPlayer.pause()
+                stopProgressUpdates()
+                sendProgressBroadcast()
+
             }
-            "INCREASE_VOLUME" -> {
+            INCREASE_VOLUME -> {
                 audioManager.adjustVolume(AudioManager.ADJUST_RAISE, AudioManager.FLAG_PLAY_SOUND)
+
             }
-            "DECREASE_VOLUME" -> {
+            DECREASE_VOLUME -> {
                 audioManager.adjustVolume(AudioManager.ADJUST_LOWER, AudioManager.FLAG_PLAY_SOUND)
+            }
+            GET_SONG_NAME -> {
+
+            }
+            GET_STATE -> {
+                sendProgressBroadcast()
             }
         }
         return START_STICKY
@@ -99,12 +124,32 @@ class ForegroundService : Service() {
     }
 
     override fun onDestroy() {
-        Log.e(TAG, "onDestroy")
-        mediaPlayer.release()
         super.onDestroy()
+        mediaPlayer.release()
+        Log.e(TAG, "onDestroy")
     }
 
-    fun pauseMedia() {
-        mediaPlayer.pause()
+    private fun startProgressUpdates() {
+        progressUpdateJob = CoroutineScope(Dispatchers.IO).launch {
+            while (mediaPlayer.isPlaying) {
+                sendProgressBroadcast()
+                delay(1000) // Cập nhật mỗi giây
+            }
+        }
+    }
+
+    private fun stopProgressUpdates() {
+        progressUpdateJob?.cancel()
+    }
+
+    private fun sendProgressBroadcast() {
+        val intent = Intent("com.example.ghtk_media_service.SONG_PROGRESS")
+        intent.putExtra("current_position", mediaPlayer.currentPosition)
+        intent.putExtra("duration", mediaPlayer.duration)
+        intent.putExtra("state", mediaPlayer.isPlaying)
+        intent.putExtra("name", R.raw.as_it_was.toString())
+//        intent.putExtra("volume", audioManager.getStreamVolume(AudioManager.STREAM_MUSIC))
+//        intent.putExtra("max_volume", audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC))
+        sendBroadcast(intent)
     }
 }

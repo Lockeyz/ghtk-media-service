@@ -1,11 +1,12 @@
 package com.example.ghtk_media_service
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
-import android.media.MediaPlayer
+import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
-import android.widget.Button
-import android.widget.ImageView
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import com.example.ghtk_media_service.databinding.ActivityMainBinding
 
@@ -17,23 +18,68 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val PLAY = 1
         const val PAUSE = 2
+        const val INCREASE_VOLUME = 3
+        const val DECREASE_VOLUME = 4
+        const val GET_SONG_NAME = 5
+        const val GET_STATE = 6
     }
-    private var isPlaying = false
+    private var action = PLAY
 
-    private var mediaPlayer: MediaPlayer? = null
-    private var isPaused: Boolean = false
-    private var action = "PAUSE"
-//    val context = MyApplication.instance
-    var songName: String = ""
-//    private var mediaPlayerListener: MediaPlayerListener? = null
+    private lateinit var songNameReceiver: BroadcastReceiver
+    private lateinit var songProgressReceiver: BroadcastReceiver
+    private lateinit var songStateReceiver: BroadcastReceiver
+
+    private var currentPosition = 0
+    private var duration = 1
+    private var progress = 0
+    private var isPlaying = false
+    private var name = ""
+    private var volume = 0
+    private var maxVolume = 1
+    private var progressVolume = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         _binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Đăng ký BroadcastReceiver để cập nhật ProgressBar
+        songProgressReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                currentPosition = intent?.getIntExtra("current_position", 0) ?: 0
+                duration = intent?.getIntExtra("duration", 1) ?: 1
+                isPlaying = intent?.getBooleanExtra("state", false) ?: false
+                name = intent?.getStringExtra("name") ?: ""
+                volume = intent?.getIntExtra("volume", 0) ?: 0
+                volume = intent?.getIntExtra("max_volume", 1) ?: 1
+                // Cập nhật ProgressBar
+                progress = (currentPosition * 100) / duration
+                binding.linearProgressBar.progress = progress
+                // Cập nhật TextView hiển thị thời gian hiện tại và tổng thời gian
+                binding.tvCurrentTime.text = currentPosition.toString()
+                binding.tvDuration.text = duration.toString()
+                // Cập nhật tên bài hát
+                binding.tvTitleSong.text = name
+                // Cập nhật volume
+                progressVolume = (volume * 100) / maxVolume
+                binding.volumeBar.progress = progressVolume
+
+                if (!isPlaying) {
+                    binding.playPauseButton.setImageResource(R.drawable.play)
+                }
+            }
+        }
+
+        val progressFilter = IntentFilter("com.example.ghtk_media_service.SONG_PROGRESS")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(songProgressReceiver, progressFilter, RECEIVER_EXPORTED)
+        }
+
+        senActionToForegroundService(GET_STATE)
+
         binding.playPauseButton.setOnClickListener {
             setPlayPauseButton()
+            Log.e("MA", (!isPlaying).toString())
         }
 
         binding.increaseVolumeButton.setOnClickListener {
@@ -50,15 +96,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setPlayPauseButton() {
-        senActionToForegroundService(action)
-        if (action == "PLAY") {
-            sendActionToService(action)
-            binding.playPauseButton.setImageResource(R.drawable.play)
-            action = "PAUSE"
-        } else {
-            sendActionToService(action)
+        Log.e("MA", (isPlaying).toString())
+        if (!isPlaying) {
+            senActionToForegroundService(PLAY)
             binding.playPauseButton.setImageResource(R.drawable.pause)
-            action = "PLAY"
+//            isPlaying = true
+        } else {
+            senActionToForegroundService(PAUSE)
+            binding.playPauseButton.setImageResource(R.drawable.play)
+//            isPlaying = false
         }
     }
 
@@ -70,41 +116,15 @@ class MainActivity : AppCompatActivity() {
             sendActionToService("DECREASE_VOLUME")
     }
 
-    fun resumeSong(playPause: ImageView) {
-        if (isPaused) {
-            mediaPlayer?.start()
-            isPaused = false
-            updatePlayPauseButtonUI(playPause)
-        }
-
-    }
-
-    fun pauseSong(playPause: ImageView) {
-        if (mediaPlayer?.isPlaying == true) {
-            mediaPlayer?.pause()
-            isPaused = true
-            updatePlayPauseButtonUI(playPause)
-        }
-
-    }
-
-    private fun isPlaying(): Boolean {
-        return mediaPlayer?.isPlaying ?: false
-    }
-
-    private fun updatePlayPauseButtonUI(playPause: ImageView) {
-        playPause.setImageResource(if (isPlaying()) R.drawable.pause else R.drawable.play)
-    }
-
     private fun sendActionToService(action: String) {
         val serviceIntent = Intent(this, MusicService::class.java)
         serviceIntent.action = action
         startService(serviceIntent)
     }
 
-    private fun senActionToForegroundService(action: String) {
+    private fun senActionToForegroundService(action: Int) {
         val foregroundServiceIntent = Intent(this, ForegroundService::class.java)
-        foregroundServiceIntent.action = action
+        foregroundServiceIntent.putExtra("action", action)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(foregroundServiceIntent)
         } else {
@@ -122,7 +142,4 @@ class MainActivity : AppCompatActivity() {
         stopService()
     }
 
-    override fun onStop() {
-        super.onStop()
-    }
 }
